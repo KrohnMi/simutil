@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Dark mode switch in a running device's context menu, for Android
+  emulators and phones and iOS simulators.
+
 ## [0.6.1] - 2026-11-21
 
 ### Fixed
