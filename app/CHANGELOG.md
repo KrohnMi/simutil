@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.6.1] - 2026-11-21
-
 ### Fixed
 
 - Closing an iOS simulator tile while its stream is still connecting no
   longer leaves the simulator's capture running in the background.
+
+## [0.6.1] - 2026-11-21
+
+### Fixed
+
 - The iOS device list no longer freezes when Xcode's simulator service
   hangs (for example after an Xcode update).
 - Starting a device recording that fails (for example an iOS simulator
