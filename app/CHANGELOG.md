@@ -7,13 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.6.1] - 2026-11-21
-
 ### Fixed
 
 - Tapping an iOS simulator element by label (through MCP or a scenario)
   presses the element that was found, even when several share the same
   label, instead of the first of them.
+
+## [0.6.1] - 2026-11-21
+
+### Fixed
+
 - The iOS device list no longer freezes when Xcode's simulator service
   hangs (for example after an Xcode update).
 - Starting a device recording that fails (for example an iOS simulator
