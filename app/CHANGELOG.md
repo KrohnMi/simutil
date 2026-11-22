@@ -7,13 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.6.1] - 2026-11-21
-
 ### Fixed
 
 - A USB Android device's stream on macOS recovers after a decoding
   error (for example after the Mac wakes from sleep) instead of freezing
   until the phone sends a full frame on its own.
+
+## [0.6.1] - 2026-11-21
+
+### Fixed
+
 - The iOS device list no longer freezes when Xcode's simulator service
   hangs (for example after an Xcode update).
 - Starting a device recording that fails (for example an iOS simulator
