@@ -7,13 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.6.1] - 2026-11-21
-
 ### Fixed
 
 - A settings file SimUtil cannot read (for example after editing it by
   hand) is kept as `desktop-settings.json.bak` instead of being replaced
   by the next change, which kept only that one setting.
+
+## [0.6.1] - 2026-11-21
+
+### Fixed
+
 - The iOS device list no longer freezes when Xcode's simulator service
   hangs (for example after an Xcode update).
 - Starting a device recording that fails (for example an iOS simulator
