@@ -21,6 +21,9 @@ class DeviceWindows {
 
   final _moves = StreamController<DeviceMove>.broadcast();
 
+  /// Set by [closeAll]: SimUtil is quitting, so no new window opens.
+  var _closing = false;
+
   /// Devices moved into their own window or back to the grid, for toasts.
   Stream<DeviceMove> get moves => _moves.stream;
 
@@ -58,9 +61,10 @@ class DeviceWindows {
   }
 
   /// Opens [device] in its own window, or shows the one it has. The window
-  /// shows itself once it is sized.
+  /// shows itself once it is sized. Does nothing while quitting: a window
+  /// opened after [closeAll] looked would keep its stream running.
   Future<void> open(Device device) async {
-    if (await focus(device)) return;
+    if (_closing || await focus(device) || _closing) return;
     await WindowController.create(
       WindowConfiguration(arguments: argumentsFor(device)),
     );
@@ -90,24 +94,25 @@ class DeviceWindows {
     }
   }
 
-  /// Has every device window stop its stream; for quitting.
+  /// Has every device window stop its stream, all at once; for quitting.
+  /// Each gets 5 s, so a hung one leaves time to release the main window.
   Future<void> closeAll() async {
+    _closing = true;
     final List<WindowController> windows;
     try {
       windows = await WindowController.getAll();
     } catch (_) {
       return; // quitting still releases the main window's services
     }
-    for (final window in windows) {
-      if (deviceOf(window.arguments) == null) continue;
-      try {
-        await window
-            .invokeMethod<void>(closeMethod)
-            .timeout(const Duration(seconds: 5));
-      } catch (_) {
-        // A window that does not answer must not block quitting.
-      }
-    }
+    await Future.wait([
+      for (final window in windows)
+        if (deviceOf(window.arguments) != null)
+          window
+              .invokeMethod<void>(closeMethod)
+              .timeout(const Duration(seconds: 5))
+              // A window that does not answer must not block quitting.
+              .catchError((Object _) {}),
+    ]);
   }
 }
 

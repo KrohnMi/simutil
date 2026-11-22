@@ -25,7 +25,8 @@ class AppDelegate: FlutterAppDelegate {
 
   /// Cmd+Q, the app menu, the Dock and logging out terminate without
   /// closing the window, so the Dart side never hears of it: adb, scrcpy
-  /// and ffmpeg would keep running. Cancel, release, then terminate again.
+  /// and ffmpeg would keep running. Delay the quit until the release ran
+  /// (or timed out): a logout, restart or shutdown then carries on.
   override func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
     guard !released, let channel = quitChannel else { return .terminateNow }
     if releasing { return .terminateCancel }
@@ -33,11 +34,11 @@ class AppDelegate: FlutterAppDelegate {
     let finish = { [weak self] in
       guard let self, !self.released else { return }
       self.released = true
-      sender.terminate(nil)
+      sender.reply(toApplicationShouldTerminate: true)
     }
     channel.invokeMethod("release", arguments: nil) { _ in finish() }
     DispatchQueue.main.asyncAfter(deadline: .now() + Self.releaseTimeout, execute: finish)
-    return .terminateCancel
+    return .terminateLater
   }
 
   /// The Dock icon shows the main window again after it was hidden while
