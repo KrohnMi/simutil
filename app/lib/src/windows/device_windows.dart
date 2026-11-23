@@ -106,13 +106,30 @@ class DeviceWindows {
     }
     await Future.wait([
       for (final window in windows)
-        if (deviceOf(window.arguments) != null)
-          window
-              .invokeMethod<void>(closeMethod)
-              .timeout(const Duration(seconds: 5))
-              // A window that does not answer must not block quitting.
-              .catchError((Object _) {}),
+        if (deviceOf(window.arguments) != null) _close(window),
     ]);
+  }
+
+  /// Asks [window] to stop its stream. A window still starting has no
+  /// handler yet (it adds it before it opens the stream), so ask again
+  /// until it answers. A window that never does must not block quitting.
+  static Future<void> _close(WindowController window) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while (true) {
+      final left = deadline.difference(DateTime.now());
+      if (left <= Duration.zero) return;
+      try {
+        await window.invokeMethod<void>(closeMethod).timeout(left);
+        return;
+      } on WindowChannelException catch (e) {
+        if (e.code != 'CHANNEL_UNREGISTERED' && e.code != 'CHANNEL_NOT_FOUND') {
+          return;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      } catch (_) {
+        return;
+      }
+    }
   }
 }
 
