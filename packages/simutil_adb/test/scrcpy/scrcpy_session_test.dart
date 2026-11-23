@@ -266,6 +266,68 @@ void main() {
       ),
     );
   });
+
+  test('stop() during the start returns once the forward it created is '
+      'removed', () async {
+    final forwardRequested = Completer<void>();
+    final releaseForward = Completer<void>();
+    final exec = _GatedExec((args) async {
+      if (args.contains('getprop')) return FakeCommandExec.ok('1\n');
+      if (args.contains('forward') && !args.contains('--remove')) {
+        forwardRequested.complete();
+        await releaseForward.future;
+        return FakeCommandExec.ok('4321\n');
+      }
+      return FakeCommandExec.ok();
+    });
+    final session = ScrcpySession(
+      serial: 'emulator-5554',
+      adbPath: 'true',
+      install: const ScrcpyInstall(serverPath: 'server', version: '3.0'),
+      exec: exec,
+    );
+
+    final starting = session.start();
+    await forwardRequested.future;
+    var stopped = false;
+    final stopping = session.stop().then((_) => stopped = true);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(stopped, isFalse, reason: 'the start still holds the forward');
+
+    releaseForward.complete();
+    await stopping;
+    expect(
+      exec.calls,
+      contains(
+        equals(['-s', 'emulator-5554', 'forward', '--remove', 'tcp:4321']),
+      ),
+    );
+    await starting;
+  });
+
+  test('stop() gives up waiting for a start that hangs', () async {
+    final forwardRequested = Completer<void>();
+    final exec = _GatedExec((args) async {
+      if (args.contains('getprop')) return FakeCommandExec.ok('1\n');
+      if (args.contains('forward') && !args.contains('--remove')) {
+        forwardRequested.complete();
+        return Completer<CommandResult>().future; // never answers
+      }
+      return FakeCommandExec.ok();
+    });
+    final session = ScrcpySession(
+      serial: 'emulator-5554',
+      adbPath: 'true',
+      install: const ScrcpyInstall(serverPath: 'server', version: '3.0'),
+      exec: exec,
+    );
+
+    unawaited(session.start());
+    await forwardRequested.future;
+    final clock = Stopwatch()..start();
+    await session.stop().timeout(const Duration(seconds: 5));
+    expect(clock.elapsed, lessThan(const Duration(seconds: 4)));
+  });
 }
 
 /// adb reports the device booted and forwards to [port].

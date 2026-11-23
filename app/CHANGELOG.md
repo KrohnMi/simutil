@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - When an Android emulator does not confirm that a recording stopped, the
   recording stays active and shows the error, so stopping it again
   retries instead of starting a new recording.
+- Closing an Android stream or quitting SimUtil while the stream is still
+  starting no longer leaves adb running.
 
 ## [0.6.1] - 2026-11-21
 

@@ -12,6 +12,9 @@
   live session gets closed by its owner.
 - `ScrcpySession.stop()` cancels a video handshake still in progress
   instead of waiting for its 10 s timeout.
+- `ScrcpySession.stop()` during `start()` waits (up to 3 s) until the
+  start has released the `adb forward` and server process it was still
+  creating, so nothing outlives `stop()`; it returned before that.
 
 ## 1.5.0
 

@@ -190,19 +190,29 @@ class _ScrcpySession implements ScrcpySession {
 
   @override
   Future<void> start() async {
+    final done = _startDone = Completer<void>();
     _emit(const SessionConnecting());
     try {
       await _startServer();
       if (!_stopped) await _connect();
     } catch (e) {
-      // Emit before stop(): it closes the status stream.
+      // Emit before stopping: it closes the status stream.
       _emit(SessionFailed('$e'));
-      await stop();
+      await _shutDown();
     } finally {
       // stop() during the start only released what existed by then.
       if (_stopped) await _release();
+      done.complete();
     }
   }
+
+  /// Completes when the running [start] is done, including releasing what
+  /// it created after a [stop].
+  Completer<void>? _startDone;
+
+  /// How long [stop] waits for a running [start] to release what it is
+  /// still creating (an `adb forward`, the server's `adb shell`).
+  static const _startSettle = Duration(seconds: 3);
 
   /// Polls `sys.boot_completed` with short commands, so a booting device
   /// does not hold a [CommandExec] slot for minutes and [stop] ends the
@@ -434,6 +444,14 @@ class _ScrcpySession implements ScrcpySession {
 
   @override
   Future<void> stop() async {
+    await _shutDown();
+    // A start in flight may still be creating the forward or the server
+    // process; it releases them once it sees the stop. Wait for that, so
+    // nothing outlives stop() (an app quitting right after it).
+    await _startDone?.future.timeout(_startSettle, onTimeout: () {});
+  }
+
+  Future<void> _shutDown() async {
     if (_stopped) return;
     if (!_stopRequested.isCompleted) _stopRequested.complete();
     await stopRecording();
