@@ -19,6 +19,35 @@ class AppDelegate: FlutterAppDelegate {
   /// A hung release must not keep the app from quitting.
   private static let releaseTimeout: TimeInterval = 10
 
+  override init() {
+    super.init()
+    NotificationCenter.default.addObserver(
+      forName: NSApplication.willTerminateNotification, object: nil, queue: nil
+    ) { _ in Self.terminateChildren() }
+  }
+
+  /// Last resort as SimUtil exits: a child process the release did not end
+  /// (it timed out, or a stop came while a start was still launching one)
+  /// would keep running under launchd. Emulators, plugins and the updater
+  /// are started detached, so they are no children and keep running.
+  private static func terminateChildren() {
+    for child in childProcesses() { kill(child, SIGTERM) }
+  }
+
+  private static func childProcesses() -> [pid_t] {
+    var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0]
+    var size = 0
+    guard sysctl(&mib, UInt32(mib.count), nil, &size, nil, 0) == 0 else { return [] }
+    let stride = MemoryLayout<kinfo_proc>.stride
+    var procs = [kinfo_proc](repeating: kinfo_proc(), count: size / stride + 32)
+    size = procs.count * stride
+    guard sysctl(&mib, UInt32(mib.count), &procs, &size, nil, 0) == 0 else { return [] }
+    let me = getpid()
+    return procs.prefix(size / stride)
+      .filter { $0.kp_eproc.e_ppid == me }
+      .map { $0.kp_proc.p_pid }
+  }
+
   override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
     return true
   }
