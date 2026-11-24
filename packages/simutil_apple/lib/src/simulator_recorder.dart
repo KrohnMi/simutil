@@ -68,6 +68,8 @@ class _SimulatorRecorder implements SimulatorRecorder {
     unawaited(process.stdout.drain<void>());
     final stderr = StringBuffer();
     final started = _started = Completer<bool>();
+    // stop() came before simctl launched: no need to wait for it to record.
+    if (_cancelled) started.complete(false);
     process.stderr.transform(utf8.decoder).listen((text) {
       stderr.write(text);
       if (stderr.toString().contains('Recording started') &&
