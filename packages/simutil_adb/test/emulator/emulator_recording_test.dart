@@ -68,4 +68,21 @@ void main() {
       await s.stop();
     },
   );
+
+  test('a second stop during a stop joins it instead of stopping and '
+      'converting again', () async {
+    final exec = FakeCommandExec((_, _) => FakeCommandExec.ok('OK\n'));
+    final s = session(exec);
+    final path = '${dir.path}/rec.mp4';
+    await s.startRecording(path);
+    File('$path.webm').writeAsStringSync('webm');
+
+    // The record button's stop, then closing the stream while it runs.
+    final results = await Future.wait([s.stopRecording(), s.stopRecording()]);
+
+    expect(results, [path, path]);
+    expect(exec.calls.where((c) => isStop(c.arguments)), hasLength(1));
+    expect(exec.calls.where((c) => c.command.endsWith('ffmpeg')), hasLength(1));
+    expect(s.isRecording, isFalse);
+  });
 }

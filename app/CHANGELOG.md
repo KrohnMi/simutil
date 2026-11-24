@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Closing an Android stream or quitting SimUtil while the stream is still
   starting no longer leaves adb running.
 - Quitting SimUtil while an Android emulator is streamed no longer hangs.
+- Closing an Android emulator's stream while its recording is being
+  stopped no longer converts the recording twice.
 
 ## [0.6.1] - 2026-11-21
 

@@ -12,6 +12,9 @@
   live session gets closed by its owner.
 - `ScrcpySession.stop()` cancels a video handshake still in progress
   instead of waiting for its 10 s timeout.
+- A second `EmulatorGrpcSession.stopRecording()` while one is running
+  waits for it and returns its result, instead of stopping, converting
+  and deleting the same file again.
 - `EmulatorGrpcSession.stop()` ends running gRPC calls instead of waiting
   for them, so it no longer hangs while a frame stream is still listened
   to (the app quitting with a stream open).

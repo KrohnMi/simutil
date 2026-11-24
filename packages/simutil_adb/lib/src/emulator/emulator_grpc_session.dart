@@ -282,11 +282,19 @@ class _EmulatorGrpcSession implements EmulatorGrpcSession {
     _recordingPath = path;
   }
 
+  /// The stop in progress: a second [stopRecording] (closing the stream
+  /// while the record button's stop runs) joins it instead of stopping
+  /// and converting the same file again.
+  Future<String?>? _stoppingRecording;
+
   /// Throws a [StateError] when the emulator does not confirm the stop: it
   /// may still be recording, so the recording stays active (and the
   /// `.webm` untouched) for the caller to retry.
   @override
-  Future<String?> stopRecording() async {
+  Future<String?> stopRecording() => _stoppingRecording ??= _stopRecording()
+      .whenComplete(() => _stoppingRecording = null);
+
+  Future<String?> _stopRecording() async {
     final path = _recordingPath;
     if (path == null) return null;
     final String? failure;
