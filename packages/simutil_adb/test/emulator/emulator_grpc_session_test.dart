@@ -11,9 +11,12 @@ import 'package:test/test.dart';
 
 /// An emulator whose display answers [screenshot] in turn.
 class _FakeEmulator extends EmulatorControllerServiceBase {
-  _FakeEmulator(this.screenshot);
+  _FakeEmulator(this.screenshot, {this.frames = const Stream.empty()});
 
   final Future<Image> Function(int call) screenshot;
+
+  /// What `streamScreenshot` sends; the emulator's never ends.
+  final Stream<Image> frames;
   var calls = 0;
 
   @override
@@ -22,7 +25,7 @@ class _FakeEmulator extends EmulatorControllerServiceBase {
 
   @override
   Stream<Image> streamScreenshot(ServiceCall call, ImageFormat request) =>
-      const Stream.empty();
+      frames;
 
   @override
   Future<Empty> streamInputEvent(
@@ -86,5 +89,27 @@ void main() {
       const SessionFailed('gRPC: bad token'),
     ]);
     expect(emulator.calls, 1);
+  });
+
+  test('stop() ends a frame stream that is still running', () async {
+    final frames = StreamController<Image>();
+    addTearDown(frames.close);
+    final emulator = _FakeEmulator(
+      (_) async => _display(1080, 2424),
+      frames: frames.stream,
+    );
+    final session = await sessionFor(emulator);
+    await session.start();
+    final received = Completer<void>();
+    // Like the app's frame pump during a quit: nobody cancels it.
+    session.frames(path: '/tmp/frames', width: 1080, height: 2424).listen((_) {
+      if (!received.isCompleted) received.complete();
+    }, onError: (Object _) {});
+    frames.add(_display(1080, 2424));
+    await received.future.timeout(const Duration(seconds: 5));
+
+    final clock = Stopwatch()..start();
+    await session.stop().timeout(const Duration(seconds: 5));
+    expect(clock.elapsed, lessThan(const Duration(seconds: 2)));
   });
 }

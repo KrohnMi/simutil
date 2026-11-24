@@ -337,7 +337,9 @@ class _EmulatorGrpcSession implements EmulatorGrpcSession {
     }
     _stopped = true;
     unawaited(_input?.close());
-    await _channel.shutdown();
+    // Not shutdown(): it waits for running calls, and a frame stream whose
+    // listener is not cancelled (the app quitting) never ends.
+    await _channel.terminate();
     await _statusController.close();
   }
 }
