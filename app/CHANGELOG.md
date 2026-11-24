@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Quitting SimUtil on macOS with Cmd+Q, the menu or the Dock now stops
   its streams, recordings and helper processes, like closing the window
   does; before, adb kept running in the background.
+- Quitting SimUtil or closing an iOS simulator's stream while its
+  recording is still starting no longer leaves the recording running.
 
 ## [0.6.1] - 2026-11-21
 

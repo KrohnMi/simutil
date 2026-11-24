@@ -32,6 +32,14 @@ class _SimulatorRecorder implements SimulatorRecorder {
   /// another `simctl`, and [stop] waits for it.
   Future<void>? _starting;
 
+  /// The `simctl` a running start launched, before it reported recording,
+  /// and whether it did; [stop] ends that wait.
+  Process? _launching;
+  Completer<bool>? _started;
+
+  /// [stop] was called while a start was running: it must not record.
+  var _cancelled = false;
+
   /// How long `simctl` may take to report `Recording started`.
   static const _startTimeout = Duration(seconds: 15);
 
@@ -55,9 +63,11 @@ class _SimulatorRecorder implements SimulatorRecorder {
       '--force',
       path,
     ]);
+    _launching = process;
+    if (_cancelled) process.kill(ProcessSignal.sigint);
     unawaited(process.stdout.drain<void>());
     final stderr = StringBuffer();
-    final started = Completer<bool>();
+    final started = _started = Completer<bool>();
     process.stderr.transform(utf8.decoder).listen((text) {
       stderr.write(text);
       if (stderr.toString().contains('Recording started') &&
@@ -80,6 +90,19 @@ class _SimulatorRecorder implements SimulatorRecorder {
       _startTimeout,
       onTimeout: () => false,
     );
+    _launching = null;
+    _started = null;
+    if (_cancelled) {
+      // Already sent SIGINT by stop(): let simctl finish on its own.
+      await process.exitCode.timeout(
+        const Duration(seconds: 2),
+        onTimeout: () {
+          process.kill();
+          return -1;
+        },
+      );
+      throw StateError('Recording stopped while it was starting');
+    }
     if (!ok) {
       process.kill();
       // So a retry does not overlap the failed simctl.
@@ -96,12 +119,21 @@ class _SimulatorRecorder implements SimulatorRecorder {
   /// simctl finalizes the movie on SIGINT, not on SIGTERM.
   @override
   Future<String?> stop() async {
-    // A stream closed while its recording starts: let the start finish,
-    // then stop what it started rather than leave it running.
+    // A stream closed (or the app quitting) while its recording starts:
+    // end the start now instead of waiting up to [_startTimeout] for
+    // simctl, and stop what it may already have started.
     if (_starting case final starting?) {
+      _cancelled = true;
+      _launching?.kill(ProcessSignal.sigint);
+      if (_started case final started? when !started.isCompleted) {
+        started.complete(false);
+      }
       try {
         await starting;
-      } catch (_) {}
+      } catch (_) {
+      } finally {
+        _cancelled = false;
+      }
     }
     final process = _process;
     final path = _path;

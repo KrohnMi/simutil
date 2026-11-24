@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.1
+
+- `SimulatorRecorder.stop()` during `start()` stops the pending
+  `simctl io recordVideo` right away instead of waiting up to 15 s for it
+  to report `Recording started`; that `start()` then throws a
+  `StateError` and no recording is kept.
+
 ## 1.5.0
 
 - `IOSDeviceService.launchDevice` throws a `SimulatorLaunchException`
