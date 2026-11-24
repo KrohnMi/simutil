@@ -15,8 +15,14 @@ class _FakeSession implements DeviceSession {
   /// Completes the pending [start].
   final gate = Completer<void>();
 
+  /// What [stop] waits for; set to make it hang.
+  Future<void>? stopGate;
+
   @override
-  Future<void> stop() async => stopped = true;
+  Future<void> stop() async {
+    await stopGate;
+    stopped = true;
+  }
 
   @override
   Future<void> start() {
@@ -46,6 +52,36 @@ void main() {
     state: state,
     type: DeviceType.simulator,
   );
+
+  test('close() stops every session and does not wait on one that '
+      'hangs', () async {
+    final sessions = <String, _FakeSession>{
+      'A': _FakeSession('A')
+        ..gate.complete()
+        ..stopGate = Completer<void>().future,
+      'B': _FakeSession('B')..gate.complete(),
+    };
+    final cubit = StreamsCubit(
+      (device) async => sessions[device.id]!,
+      stopLimit: const Duration(milliseconds: 200),
+    );
+    for (final id in sessions.keys) {
+      await cubit.open(
+        Device.android(
+          id: id,
+          name: id,
+          state: DeviceState.booted,
+          type: DeviceType.simulator,
+        ),
+      );
+    }
+    await pumpEventQueue();
+    expect(sessions.values.every((s) => s.started), isTrue);
+
+    await cubit.close().timeout(const Duration(seconds: 2));
+    expect(sessions['A']!.stopped, isFalse);
+    expect(sessions['B']!.stopped, isTrue);
+  });
 
   test('a device streaming in its own window opens no tile', () async {
     var created = 0;

@@ -26,8 +26,13 @@ class StreamsCubit extends CubitSignal<StreamsState> {
     this.onSaved,
     this.openElsewhere,
     RecordingLock? recordingLock,
+    this.stopLimit = const Duration(seconds: 5),
   }) : _recordingLock = recordingLock ?? RecordingLock(),
        super(initialState: const StreamsState());
+
+  /// How long [close] waits for each session to stop: on quit, a session
+  /// that hangs must not keep the rest of the app from being released.
+  final Duration stopLimit;
 
   /// One recording at a time, shared with the grid recorder.
   final RecordingLock _recordingLock;
@@ -269,9 +274,13 @@ class StreamsCubit extends CubitSignal<StreamsState> {
     for (final subscription in _subscriptions.values) {
       await subscription.cancel();
     }
-    for (final session in _sessions.values) {
-      await session.stop();
-    }
+    await Future.wait([
+      for (final session in _sessions.values)
+        session
+            .stop()
+            .timeout(stopLimit, onTimeout: () {})
+            .catchError((Object _) {}),
+    ]);
     _sessions.clear();
     await super.close();
   }
